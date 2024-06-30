@@ -1,0 +1,5 @@
+# Just some shortcuts
+Makefile
+
+.zig-cache
+zig-out
