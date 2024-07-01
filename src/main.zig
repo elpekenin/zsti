@@ -12,7 +12,6 @@ fn find_port(iterator: *serial.PortIterator) ![]const u8 {
     return error.NoPortFound;
 }
 
-
 pub fn main() !void {
     var iterator = try serial.list();
     defer iterator.deinit();
@@ -20,7 +19,7 @@ pub fn main() !void {
     const port_name = try find_port(&iterator);
     std.log.info("Found serial device ({s})", .{port_name});
 
-    var port = try std.fs.cwd().openFile(port_name, .{ .mode = .read_write });
+    var port = try std.fs.openFileAbsolute(port_name, .{ .mode = .read_write });
     defer port.close();
     std.log.info("Connected to device", .{});
 
@@ -30,12 +29,25 @@ pub fn main() !void {
         .word_size = .eight,
         .stop_bits = .one,
         .parity = .none,
-        .handshake = .software,
+        .handshake = .none,
     });
 
-    std.log.info("Reading", .{});
-    const reader = port.reader();
+    var GPA: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    const gpa = GPA.allocator();
 
-    const b = try reader.readByte();
-    std.log.info("Read {}", .{b});
+    const u8List = std.ArrayList(u8);
+    var list = u8List.init(gpa);
+    defer list.deinit();
+
+    while (true) {
+        const b = try port.reader().readByte();
+
+        if (b == '\n') {
+            std.log.info("{s}", .{list.items});
+            list.deinit();
+            list = u8List.init(gpa);
+        } else {
+            try list.append(b);
+        }
+    }
 }
